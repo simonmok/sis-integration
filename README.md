@@ -1,0 +1,2 @@
+# SIS integration for Blackboard Learn
+This program allows you to perform ETL (Extract, Transform, Load) on CSV data sources and upload to Blackboard Learn system. The program uses Blackboard Learn SIS Framework (https://help.blackboard.com/Learn/Administrator/Hosting/System_Integration/SIS/SIS_Framework_Overview). It uses polling on Blackboard Data Set Status API (https://help.blackboard.com/Learn/Administrator/Hosting/System_Integration/SIS/SIS_Integration_Types/Snapshot_Flat_File/Snapshot_Auto) to monitor and report the progress of SIS job execution.
