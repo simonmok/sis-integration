@@ -1,13 +1,13 @@
 module.exports = {
 
 	/* User name used in Blackboard SIS framework integration */
-	user: '887b9a40-b2bd-4af0-89d0-4564ea62108d',
+	user: '<USER_NAME>',
 
 	/* Password used in Blackboard SIS framework integration */
-	password: 'password',
+	password: '<PASSWORD>',
 
 	/* Base URL used in Blackboard SIS framework integration */
-	host: 'https://bb.bee-net.com/webapps/bb-data-integration-flatfile-BBLEARN',
+	host: 'https://<HOST>/webapps/bb-data-integration-flatfile-BBLEARN',
 
 	/* Number of milliseconds between SIS status polling */
 	pollInterval: 5000,
