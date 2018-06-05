@@ -8,63 +8,56 @@ module.exports = {
 		if (fs.existsSync(inputPath)) {
 			var stream = fs.createReadStream(inputPath);
 			console.log('Input file ' + inputPath + ' loaded');
-			if (!fs.existsSync(SIS.outputFolder)) {
+			if (SIS.outputFolder && !fs.existsSync(SIS.outputFolder)) {
 				console.log('Creating output folder ' + SIS.outputFolder);
 				fs.mkdirSync(SIS.outputFolder);
 			}
 			var outputs = SIS.outputFiles ? SIS.outputFiles.map(outputFile => fs.createWriteStream(this.getFullPath(SIS.outputFolder, outputFile))) : [];
 			var count = 1, errorCount = 0, headerValid = false, module = this;
-			this.openOutputFiles(outputs, SIS.outputFiles, 0, () => {
-				console.log(outputs.length + ' output file(s) opened');
-				csv.fromStream(stream, {headers: true, delimiter: settings.fieldDelimiter})
-					.validate(data => {
-						if (count++ === 1) {
-							headerValid = SIS.validateHeader == undefined || SIS.validateHeader(data);
-							if (headerValid) {
-								console.log(SIS.validateHeader ? "File header validated" : "File header validation skipped");
-								SIS.headerValidated && SIS.headerValidated(outputs);
-							} else {
-								module.error("Fatal error: Invalid file header");
-							}
-							return headerValid;
+			csv.fromStream(stream, {headers: true, delimiter: settings.fieldDelimiter})
+				.validate(data => {
+					if (count++ === 1) {
+						headerValid = SIS.validateHeader == undefined || SIS.validateHeader(data);
+						if (headerValid) {
+							console.log(SIS.validateHeader ? "File header validated" : "File header validation skipped");
+							SIS.headerValidated && SIS.headerValidated(outputs);
+						} else {
+							module.error("Fatal error: Invalid file header");
 						}
-						return headerValid && (SIS.validateData == undefined || SIS.validateData(data));
-					})
-					.on("data-invalid", data => {
-						headerValid && module.error("Invalid data found on row " + count, data);
-						errorCount++;
-					})
-					.transform(data => {
-						headerValid && SIS.transformData && SIS.transformData(data);
-						return data;
-					})
-					.on("data", data => {
-						headerValid && SIS.processData && SIS.processData(data, outputs);
-					})
-					.on("end", () => {
-						outputs.forEach(output => output.end());
+						return headerValid;
+					}
+					return headerValid && (SIS.validateData == undefined || SIS.validateData(data));
+				})
+				.on("data-invalid", data => {
+					headerValid && module.error("Invalid data found on row " + count, data);
+					errorCount++;
+				})
+				.transform(data => {
+					headerValid && SIS.transformData && SIS.transformData(data);
+					return data;
+				})
+				.on("data", data => {
+					headerValid && SIS.processData && SIS.processData(data, outputs);
+				})
+				.on("end", () => {
+					SIS.flushFiles && SIS.flushFiles(outputs);
+					outputs.forEach(output => output.end());
+					if (SIS.summary) {
+						SIS.summary(count - 1, errorCount);
+					} else {
 						console.log((count - 1) + " row(s) processed");
 						console.log(errorCount + " row(s) with error");
-						SIS.complete(headerValid, SIS.outputFiles ? SIS.outputFiles.map(outputFile => fs.createReadStream(module.getFullPath(SIS.outputFolder, outputFile))) : []);
-					});
-			});
+					}
+					if (SIS.success && headerValid) {
+						SIS.success(SIS.outputFiles ? SIS.outputFiles.map(outputFile => fs.createReadStream(module.getFullPath(SIS.outputFolder, outputFile))) : []);
+					}
+					if (SIS.error && !headerValid) {
+						SIS.error();
+					}
+				});
 		} else {
 			this.error("File error: " + inputPath + " does not exist");
-			SIS.complete();
-		}
-	},
-
-	openOutputFiles: function (outputs, files, index, callback) {
-		var module = this;
-		if (outputs.length > 0) {
-			console.log('Opening output file ' + files[index]);
-			if (outputs.length > index) {
-				outputs[index].once("open", () => index === outputs.length - 1 ?
-					callback() : module.openOutputFiles(outputs, files, index + 1, callback));
-			}
-		} else {
-			console.log('No output file specified');
-			callback();
+			SIS.error && SIS.error();
 		}
 	},
 
