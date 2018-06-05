@@ -35,7 +35,7 @@ util.loadCsv({
 				.then(function (body) {
 					util.handleReferenceCode(
 						body,
-						(code) => util.pollStatus(util.getRequestOptions('/dataSetStatus/' + code), 1, () => console.log("SIS job completed on " + new Date()))
+						code => util.pollStatus(util.getRequestOptions('/dataSetStatus/' + code), 1, () => console.log("SIS job completed on " + new Date()))
 					);
 				}).catch(error => util.error("Error code from Bb server " + error.statusCode));
 		} else {

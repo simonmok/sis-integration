@@ -7,8 +7,9 @@ module.exports = {
 		var inputPath = this.getFullPath(SIS.inputFolder, SIS.inputFile);
 		if (fs.existsSync(inputPath)) {
 			var stream = fs.createReadStream(inputPath);
+			console.log('Input file ' + inputPath + ' loaded');
 			var count = 1, errorCount = 0, headerValid = false;
-			var outputs = SIS.outputFiles.map(outputFile => fs.createWriteStream(this.getFullPath(SIS.outputFolder, outputFile)));
+			var outputs = SIS.outputFiles ? SIS.outputFiles.map(outputFile => fs.createWriteStream(this.getFullPath(SIS.outputFolder, outputFile))) : [];
 			var module = this;
 			this.openOutputFile(outputs, 0, function () {
 				csv.fromStream(stream, {headers: true, delimiter: settings.fieldDelimiter})
@@ -46,7 +47,7 @@ module.exports = {
 						outputs.forEach(output => output.end());
 						console.log((count - 1) + " row(s) processed");
 						console.log(errorCount + " row(s) with error");
-						SIS.complete(headerValid, SIS.outputFiles.map(outputFile => fs.createReadStream(module.getFullPath(SIS.outputFolder, outputFile))));
+						SIS.complete(headerValid, SIS.outputFiles ? SIS.outputFiles.map(outputFile => fs.createReadStream(module.getFullPath(SIS.outputFolder, outputFile))) : []);
 					});
 			});
 		} else {
@@ -57,14 +58,19 @@ module.exports = {
 
 	openOutputFile: function (outputs, index, callback) {
 		var module = this;
-		if (outputs.length > index) {
-			outputs[index].once("open", function () {
-				if (index === outputs.length - 1) {
-					callback();
-				} else {
-					module.openOutputFile(outputs, index + 1);
-				}
-			});
+		if (outputs.length > 0) {
+			if (outputs.length > index) {
+				outputs[index].once("open", function () {
+					if (index === outputs.length - 1) {
+						callback();
+					} else {
+						module.openOutputFile(outputs, index + 1);
+					}
+				});
+			}
+		} else {
+			console.log('No output file specified');
+			callback();
 		}
 	},
 
@@ -124,10 +130,6 @@ module.exports = {
 	},
 
 	getFullPath: function (folder, file) {
-		if (folder) {
-			return folder + '/' + file;
-		} else {
-			return file;
-		}
+		return folder ? folder + '/' + file : file;
 	}
 }
