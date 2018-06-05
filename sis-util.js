@@ -4,45 +4,68 @@ module.exports = {
 		var fs = require("fs");
 		var csv = require("fast-csv");
 		var settings = require("./sis-settings");
-		var stream = fs.createReadStream(SIS.file);
-		var output = fs.createWriteStream(SIS.outputFile);
-		var module = this;
-		var count = 1, errorCount = 0, headerValid = false;
-		output.once("open", function () {
-			csv.fromStream(stream, {headers: true, delimiter: settings.fieldDelimiter})
-				.validate(function (data) {
-					if (count++ === 1) {
-						headerValid = SIS.validateHeader(data);
-						if (headerValid) {
-							console.log("File header validated");
-							SIS.headerValidated(output);
-						} else {
-							module.error("Fatal error: Invalid file header");
+		var inputPath = this.getFullPath(SIS.inputFolder, SIS.inputFile);
+		if (fs.existsSync(inputPath)) {
+			var stream = fs.createReadStream(inputPath);
+			var count = 1, errorCount = 0, headerValid = false;
+			var outputs = SIS.outputFiles.map(outputFile => fs.createWriteStream(this.getFullPath(SIS.outputFolder, outputFile)));
+			var module = this;
+			this.openOutputFile(outputs, 0, function () {
+				csv.fromStream(stream, {headers: true, delimiter: settings.fieldDelimiter})
+					.validate(function (data) {
+						if (count++ === 1) {
+							headerValid = SIS.validateHeader(data);
+							if (headerValid) {
+								console.log("File header validated");
+								SIS.headerValidated(outputs);
+							} else {
+								module.error("Fatal error: Invalid file header");
+							}
+							return headerValid;
 						}
-						return headerValid;
-					}
-					return headerValid && SIS.validateData(data);
-				})
-				.on("data-invalid", function (data) {
-					if (headerValid) {
-						module.error("Invalid data found on row " + count, data);
-					}
-					errorCount++;
-				})
-				.transform(function (data) {
-					SIS.transformData(data);
-					return data;
-				})
-				.on("data", function (data) {
-					SIS.processData(data, output);
-				})
-				.on("end", function () {
-					output.end();
-					console.log((count - 1) + " row(s) processed");
-					console.log(errorCount + " row(s) with error");
-					SIS.complete(errorCount === 0, fs.createReadStream(SIS.outputFile));
-				});
-		});
+						return headerValid && SIS.validateData(data);
+					})
+					.on("data-invalid", function (data) {
+						if (headerValid) {
+							module.error("Invalid data found on row " + count, data);
+						}
+						errorCount++;
+					})
+					.transform(function (data) {
+						if (headerValid && SIS.transformData) {
+							SIS.transformData(data);
+						}
+						return data;
+					})
+					.on("data", function (data) {
+						if (headerValid && SIS.processData) {
+							SIS.processData(data, outputs);
+						}
+					})
+					.on("end", function () {
+						outputs.forEach(output => output.end());
+						console.log((count - 1) + " row(s) processed");
+						console.log(errorCount + " row(s) with error");
+						SIS.complete(headerValid, SIS.outputFiles.map(outputFile => fs.createReadStream(module.getFullPath(SIS.outputFolder, outputFile))));
+					});
+			});
+		} else {
+			this.error("File error: " + inputPath + " does not exist");
+			SIS.complete();
+		}
+	},
+
+	openOutputFile: function (outputs, index, callback) {
+		var module = this;
+		if (outputs.length > index) {
+			outputs[index].once("open", function () {
+				if (index === outputs.length - 1) {
+					callback();
+				} else {
+					module.openOutputFile(outputs, index + 1);
+				}
+			});
+		}
 	},
 
 	getRequestOptions: function (uri, stream) {
@@ -98,5 +121,13 @@ module.exports = {
 	error: function (message, arg) {
 		var constants = require("./sis-constants");
 		arg ? console.error(constants.escapeChar + "[91m" + message + "\n", arg, constants.escapeChar + "[0m") : console.error(constants.escapeChar + "[91m" + message + constants.escapeChar + "[0m");
+	},
+
+	getFullPath: function (folder, file) {
+		if (folder) {
+			return folder + '/' + file;
+		} else {
+			return file;
+		}
 	}
 }
