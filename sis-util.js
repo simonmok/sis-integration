@@ -25,9 +25,9 @@ module.exports = {
 				})
 				.on("data-invalid", function (data) {
 					if (headerValid) {
-						errorCount++;
 						module.error("Invalid data found on row " + count, data);
 					}
+					errorCount++;
 				})
 				.transform(function (data) {
 					SIS.transformData(data);
@@ -40,7 +40,7 @@ module.exports = {
 					output.end();
 					console.log((count - 1) + " row(s) processed");
 					console.log(errorCount + " row(s) with error");
-					SIS.complete(errorCount > 0, fs.createReadStream(SIS.outputFile));
+					SIS.complete(errorCount === 0, fs.createReadStream(SIS.outputFile));
 				});
 		});
 	},
