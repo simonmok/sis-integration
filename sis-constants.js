@@ -1,6 +1,8 @@
 module.exports = {
 
-	userHeader: ["EXTERNAL_PERSON_KEY", "USER_ID", "FIRSTNAME", "LASTNAME", "INSTITUTION_ROLE", "AVAILABLE_IND", "ROW_STATUS"],
+	userHeader: ["external_person_key", "user_id", "firstname", "lastname", "institution_role", "available_ind", "row_status"],
+
+	courseHeader: ["external_course_key", "course_id", "course_name", "available_ind", "row_status"],
 
 	referenceCodeLength: 32,
 

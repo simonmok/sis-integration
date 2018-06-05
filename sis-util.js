@@ -8,10 +8,14 @@ module.exports = {
 		if (fs.existsSync(inputPath)) {
 			var stream = fs.createReadStream(inputPath);
 			console.log('Input file ' + inputPath + ' loaded');
-			var count = 1, errorCount = 0, headerValid = false;
+			if (!fs.existsSync(SIS.outputFolder)) {
+				console.log('Creating output folder ' + SIS.outputFolder);
+				fs.mkdirSync(SIS.outputFolder);
+			}
 			var outputs = SIS.outputFiles ? SIS.outputFiles.map(outputFile => fs.createWriteStream(this.getFullPath(SIS.outputFolder, outputFile))) : [];
-			var module = this;
-			this.openOutputFile(outputs, 0, function () {
+			var count = 1, errorCount = 0, headerValid = false, module = this;
+			this.openOutputFiles(outputs, 0, function () {
+				console.log(outputs.length + ' output file(s) opened');
 				csv.fromStream(stream, {headers: true, delimiter: settings.fieldDelimiter})
 					.validate(function (data) {
 						if (count++ === 1) {
@@ -56,7 +60,7 @@ module.exports = {
 		}
 	},
 
-	openOutputFile: function (outputs, index, callback) {
+	openOutputFiles: function (outputs, index, callback) {
 		var module = this;
 		if (outputs.length > 0) {
 			if (outputs.length > index) {
@@ -64,7 +68,7 @@ module.exports = {
 					if (index === outputs.length - 1) {
 						callback();
 					} else {
-						module.openOutputFile(outputs, index + 1);
+						module.openOutputFiles(outputs, index + 1, callback);
 					}
 				});
 			}
@@ -99,8 +103,20 @@ module.exports = {
 			this.error("Unable to fetch reference code from SIS data set status.");
 		}
 	},
+	
+	uploadWithPolling: function (url, stream, callback) {
+		var requestPromise = require("request-promise");
+		requestPromise.post(this.getRequestOptions(url, stream))
+			.then(body => this.handleReferenceCode(body, code => this.pollStatus(code, callback)))
+			.catch(error => this.error("Error code from Bb server " + error.statusCode));
+	},
 
-	pollStatus: function (pollOptions, pollCount, complete) {
+	pollStatus: function (code, complete) {
+		var options = this.getRequestOptions('/dataSetStatus/' + code);
+		this.pollStatusByCount(options, 1, complete);
+	},
+
+	pollStatusByCount: function (pollOptions, pollCount, complete) {
 		var xml = require("xml2js");
 		var requestPromise = require("request-promise");
 		var settings = require("./sis-settings");
@@ -114,7 +130,7 @@ module.exports = {
 						complete();
 					} else {
 						console.log("Polling attempt " + pollCount + ": " + queued + " more record(s) queued for processing. Wait for " + (settings.pollInterval / 1000) + " second(s).");
-						setTimeout(() => module.pollStatus(pollOptions, pollCount + 1, complete), settings.pollInterval);
+						setTimeout(() => module.pollStatusByCount(pollOptions, pollCount + 1, complete), settings.pollInterval);
 					}
 				} else {
 					console.log("Job completed according to SIS polling status");
