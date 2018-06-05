@@ -14,40 +14,34 @@ module.exports = {
 			}
 			var outputs = SIS.outputFiles ? SIS.outputFiles.map(outputFile => fs.createWriteStream(this.getFullPath(SIS.outputFolder, outputFile))) : [];
 			var count = 1, errorCount = 0, headerValid = false, module = this;
-			this.openOutputFiles(outputs, 0, function () {
+			this.openOutputFiles(outputs, SIS.outputFiles, 0, () => {
 				console.log(outputs.length + ' output file(s) opened');
 				csv.fromStream(stream, {headers: true, delimiter: settings.fieldDelimiter})
-					.validate(function (data) {
+					.validate(data => {
 						if (count++ === 1) {
-							headerValid = SIS.validateHeader(data);
+							headerValid = SIS.validateHeader == undefined || SIS.validateHeader(data);
 							if (headerValid) {
-								console.log("File header validated");
-								SIS.headerValidated(outputs);
+								console.log(SIS.validateHeader ? "File header validated" : "File header validation skipped");
+								SIS.headerValidated && SIS.headerValidated(outputs);
 							} else {
 								module.error("Fatal error: Invalid file header");
 							}
 							return headerValid;
 						}
-						return headerValid && SIS.validateData(data);
+						return headerValid && (SIS.validateData == undefined || SIS.validateData(data));
 					})
-					.on("data-invalid", function (data) {
-						if (headerValid) {
-							module.error("Invalid data found on row " + count, data);
-						}
+					.on("data-invalid", data => {
+						headerValid && module.error("Invalid data found on row " + count, data);
 						errorCount++;
 					})
-					.transform(function (data) {
-						if (headerValid && SIS.transformData) {
-							SIS.transformData(data);
-						}
+					.transform(data => {
+						headerValid && SIS.transformData && SIS.transformData(data);
 						return data;
 					})
-					.on("data", function (data) {
-						if (headerValid && SIS.processData) {
-							SIS.processData(data, outputs);
-						}
+					.on("data", data => {
+						headerValid && SIS.processData && SIS.processData(data, outputs);
 					})
-					.on("end", function () {
+					.on("end", () => {
 						outputs.forEach(output => output.end());
 						console.log((count - 1) + " row(s) processed");
 						console.log(errorCount + " row(s) with error");
@@ -60,17 +54,13 @@ module.exports = {
 		}
 	},
 
-	openOutputFiles: function (outputs, index, callback) {
+	openOutputFiles: function (outputs, files, index, callback) {
 		var module = this;
 		if (outputs.length > 0) {
+			console.log('Opening output file ' + files[index]);
 			if (outputs.length > index) {
-				outputs[index].once("open", function () {
-					if (index === outputs.length - 1) {
-						callback();
-					} else {
-						module.openOutputFiles(outputs, index + 1, callback);
-					}
-				});
+				outputs[index].once("open", () => index === outputs.length - 1 ?
+					callback() : module.openOutputFiles(outputs, files, index + 1, callback));
 			}
 		} else {
 			console.log('No output file specified');
@@ -87,9 +77,7 @@ module.exports = {
 				pass: settings.password
 			}
 		};
-		if (stream) {
-			result.body = stream;
-		}
+		stream && (result.body = stream);
 		return result;
 	},
 
@@ -121,8 +109,8 @@ module.exports = {
 		var requestPromise = require("request-promise");
 		var settings = require("./sis-settings");
 		var module = this;
-		requestPromise.get(pollOptions).then(function (body) {
-			xml.parseString(body, function (err, result) {
+		requestPromise.get(pollOptions).then(body => {
+			xml.parseString(body, (err, result) => {
 				var queued = parseInt(result.dataSetStatus.queuedCount[0]);
 				if (queued) {
 					if (pollCount > settings.pollMaxAttempts) {

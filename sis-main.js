@@ -11,20 +11,16 @@ util.loadCsv({
 	inputFile: "grades.txt",
 	outputFolder: "data-out",
 	outputFiles: ["users.txt", "courses.txt"],
-	validateHeader: function (data) {
-		return data.COURSE_ID && data.COLUMN_ID && data.USER_ID && data.GRADE;
-	},
-	validateData: function (data) {
-		return data.COURSE_ID.length > 0 && data.COLUMN_ID.length > 0 && data.USER_ID.length > 0 && data.GRADE.length > 0;
-	},
-	headerValidated: function (outputs) {
+	validateHeader: data => data.COURSE_ID && data.COLUMN_ID && data.USER_ID && data.GRADE,
+	validateData: data => data.COURSE_ID.length > 0 && data.COLUMN_ID.length > 0 && data.USER_ID.length > 0 && data.GRADE.length > 0,
+	headerValidated: outputs => {
 		outputs[0].write(constants.userHeader.join(settings.fieldDelimiter) + '\n');
 		outputs[1].write(constants.courseHeader.join(settings.fieldDelimiter) + '\n');
 	},
-	transformData: function (data) {
+	transformData: data => {
 		data.USER_ID = data.USER_ID.toLowerCase();
 	},
-	processData: function (data, outputs) {
+	processData: (data, outputs) => {
 		if (!users.has(data.USER_ID)) {
 			outputs[0].write([data.USER_ID, data.USER_ID, "Testing", "User", "STAFF", "Y", "enabled"].join(settings.fieldDelimiter) + '\n');
 			users.add(data.USER_ID);
@@ -34,7 +30,7 @@ util.loadCsv({
 			courses.add(data.COURSE_ID);
 		}
 	},
-	complete: function (success, streams) {
+	complete: (success, streams) => {
 		if (success) {
 			console.log('Sending the person file to SIS');
 			util.uploadWithPolling('/person/store', streams[0], () => {
