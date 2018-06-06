@@ -4,7 +4,6 @@ var constants = require("./sis-constants");
 var requestPromise = require("request-promise");
 var users = new Set(), courses = new Set(), lastUsers = new Set(), lastCourses = new Set();
 
-// TODO: BGM, Housekeep files
 console.log("SIS job started on " + new Date());
 
 util.loadCsv({
