@@ -1,0 +1,8 @@
+COURSE_ID|COLUMN_ID|USER_ID|GRADE
+test_course_1|Assignment 1|testuser1|50
+test_course_1|Assignment 1|TESTUSER2|60
+test_course_1|Assignment 2|testuser1|50
+test_course_2|Assignment 2|testuser2|60
+test_course_2|Assignment 2|testuser3|70
+test_course_2|Assignment 2|testuser4|85
+test_course_2|Assignment 2|testuser5|40

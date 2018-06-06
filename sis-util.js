@@ -48,6 +48,11 @@ module.exports = {
 						console.log((count - 1) + " row(s) processed");
 						console.log(errorCount + " row(s) with error");
 					}
+					if (SIS.housekeepFolder) {
+						fs.rename(inputPath, SIS.housekeepFolder + "/" + SIS.inputFile, () => console.log("Housekeeping done to " + SIS.housekeepFolder));
+					} else {
+						console.log("No housekeeping needed");
+					}
 					if (SIS.success && headerValid) {
 						SIS.success(SIS.outputFiles ? SIS.outputFiles.map(outputFile => fs.createReadStream(module.getFullPath(SIS.outputFolder, outputFile))) : []);
 					}
@@ -85,11 +90,15 @@ module.exports = {
 		}
 	},
 	
-	uploadWithPolling: function (url, stream, callback) {
+	uploadWithPolling: function (url, stream, success, failure) {
 		var requestPromise = require("request-promise");
+		console.log("Sending request to " + url);
 		requestPromise.post(this.getRequestOptions(url, stream))
-			.then(body => this.handleReferenceCode(body, code => this.pollStatus(code, callback)))
-			.catch(error => this.error("Error code from Bb server " + error.statusCode));
+			.then(body => this.handleReferenceCode(body, code => this.pollStatus(code, success)))
+			.catch(error => {
+				this.error("Error code from Bb server " + error.statusCode);
+				failure && failure();
+			});
 	},
 
 	pollStatus: function (code, complete) {

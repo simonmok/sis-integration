@@ -2,9 +2,9 @@ var util = require("./sis-util");
 var settings = require("./sis-settings");
 var constants = require("./sis-constants");
 var requestPromise = require("request-promise");
-var users = new Set(), courses = new Set();
-var lastUsers = new Set(), lastCourses = new Set();
+var users = new Set(), courses = new Set(), lastUsers = new Set(), lastCourses = new Set();
 
+// TODO: BGM, Housekeep files
 console.log("SIS job started on " + new Date());
 
 util.loadCsv({
@@ -23,6 +23,7 @@ util.loadCsv({
 			inputFile: "grades.txt",
 			outputFolder: "data-out",
 			outputFiles: ["users-update.txt", "courses-update.txt", "users-remove.txt", "courses-remove.txt"],
+			housekeepFolder: "data-last",
 			validateHeader: data => data.COURSE_ID && data.COLUMN_ID && data.USER_ID && data.GRADE,
 			validateData: data => data.COURSE_ID.length > 0 && data.COLUMN_ID.length > 0 && data.USER_ID.length > 0 && data.GRADE.length > 0,
 			headerValidated: outputs => {
@@ -48,16 +49,12 @@ util.loadCsv({
 				lastUsers.forEach(user => outputs[2].write([user, user].join(settings.fieldDelimiter) + '\n'));
 				lastCourses.forEach(course => outputs[3].write([course, course].join(settings.fieldDelimiter) + '\n'));
 			},
-			success: (outputs) => {
-				console.log('Sending person update file to SIS');
+			success: outputs => {
 				util.uploadWithPolling('/person/store', outputs[0], () => {
-					console.log('Sending course update file to SIS');
 					util.uploadWithPolling('/course/store', outputs[1], () => {
-						console.log('Sending person delete file to SIS');
 						util.uploadWithPolling('/person/delete', outputs[2], () => {
-							console.log('Sending course delete file to SIS');
 							util.uploadWithPolling('/course/delete', outputs[3], () => {
-								console.log("SIS job completed on " + new Date())
+								console.log("SIS job completed on " + new Date());
 							});
 						});
 					});
